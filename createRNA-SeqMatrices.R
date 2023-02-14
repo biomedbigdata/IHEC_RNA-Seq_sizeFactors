@@ -47,7 +47,27 @@ pca_plot <- function(dt, outfile_prefix) {
     ggrepel::geom_text_repel(aes(label = labels), min.segment.length = 0, max.overlaps = 5, force = 5)
 }
 
-
+gather_table <- function(sample_dt, sample_names, id_col, value_col, outfile_prefix, computeSizeFactors=FALSE) {
+  subfolder <- file.path(outfile_prefix, value_col)
+  dir.create(subfolder, recursive = TRUE)
+  
+  filename <- paste0(outfile_prefix, "_", value_col)
+  dt_wide <- data.table::dcast(sample_dt, get(id_col) ~ EpiRR.uuid, value.var = value_col)
+  
+  if (computeSizeFactors) {
+    filename <- paste0(filename, "_DESeq2")
+    # estimate size factors for count data
+    sizeFactors <- DESeq2::estimateSizeFactorsForMatrix(dt_wide[, ..sample_names])
+    
+    # multiply counts with size factors
+    dt_wide[, (sample_names):=Map("*", .SD, sizeFactors), .SDcols=sample_names]
+  }
+  out_path <- file.path(subfolder, filename)
+  
+  write_dt_and_md5(dt_wide, paste0(out_path, ".csv.gz"))
+  
+  ggsave(paste0(out_path, ".pdf"), pca_plot(dt_wide, filename), width = 12, height = 10)
+}
 
 write_sample_matrices <- function(file_list, id_col, outfile_prefix, count_cols=c("expected_count", "posterior_mean_count"), tpm_cols=c("TPM", "pme_TPM")){
   # read all samples
@@ -77,27 +97,12 @@ write_sample_matrices <- function(file_list, id_col, outfile_prefix, count_cols=
   
   # write wide TPM matrix
   for (tpm_col in tpm_cols) {
-    outfile_col <- paste0(outfile_prefix, "_", tpm_col)
-    tpm_wide <- data.table::dcast(sample_dt, get(id_col) ~ EpiRR.uuid, value.var = tpm_col)
-    write_dt_and_md5(tpm_wide, paste0(outfile_col, ".csv.gz"))
-    
-    ggsave(paste0(outfile_col, ".pdf"), pca_plot(tpm_wide, outfile_col), width = 12, height = 10)
+    gather_table(sample_dt, sample_names, id_col, tpm_col, outfile_prefix, computeSizeFactors = FALSE)
   }
   
   # gather count data
   for (count_col in count_cols) {
-    outfile_col <- paste0(outfile_prefix, "_", count_col)
-    counts_wide <- data.table::dcast(sample_dt, get(id_col) ~ EpiRR.uuid, value.var = count_col)
-  
-    # estimate size factors for count data
-    sizeFactors <- DESeq2::estimateSizeFactorsForMatrix(counts_wide[, ..sample_names])
-    
-    # multiply counts with size factors
-    counts_wide[, (sample_names):=Map("*", .SD, sizeFactors), .SDcols=sample_names]
-    
-    write_dt_and_md5(counts_wide, paste0(outfile_col, "_DESeq2.csv.gz"))
-    
-    ggsave(paste0(outfile_col, ".pdf"), pca_plot(counts_wide, outfile_col), width = 12, height = 10)
+    gather_table(sample_dt, sample_names, id_col, count_col, outfile_prefix, computeSizeFactors = TRUE)
   }
   
 }

@@ -1,0 +1,15 @@
+# RNA-Seq Quantification Matrices
+
+These matrices are derived from the gene and transcript files produced by the IHEC reprocessing effort.
+
+## TPM
+TPM and pme_TPM values are gathered from the respective column in the RSEM quantification files. 
+
+## Counts
+expected_count and posterior_mean_count values are gathered from the respective column in the RSEM quantification files. 
+Afterward, the DESeq2 size factor was multiplied per sample to account for library size.
+
+## PCA
+Additionally, plots of the dimensionality reductions to the first two principal components are available for each matrix. Note that four samples from the germ line were excluded from that analysis.
+
+Author: Quirin Manz, quirin.manz@tum.de
